@@ -7,5 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "flask>=3.1.2",
     "psycopg>=3.2.13",
+    "pymongo>=4.15.4",
+    "python-dotenv>=1.2.1",
     "requests>=2.32.5",
 ]
