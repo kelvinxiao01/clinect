@@ -1,0 +1,257 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f4f4f4;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Login Section */
+#login-section {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#login-section .container {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+#login-section h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+#login-section p {
+    color: #7f8c8d;
+    margin-bottom: 30px;
+}
+
+/* Header */
+header {
+    background: #2c3e50;
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    font-size: 1.5em;
+}
+
+.user-info {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Tabs */
+.tabs {
+    background: white;
+    padding: 10px 20px;
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid #ddd;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1em;
+    color: #7f8c8d;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+
+.tab-btn.active {
+    color: #2c3e50;
+    border-bottom-color: #3498db;
+}
+
+.tab-btn:hover {
+    color: #2c3e50;
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+button {
+    padding: 10px 20px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+button:hover {
+    background: #2980b9;
+}
+
+button:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+}
+
+/* Messages */
+.message {
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 4px;
+}
+
+.message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Search Results */
+#search-results {
+    margin-top: 30px;
+}
+
+.trial-card {
+    background: white;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.trial-card h3 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.trial-card .trial-id {
+    color: #7f8c8d;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+}
+
+.trial-card .trial-status {
+    display: inline-block;
+    padding: 5px 10px;
+    background: #3498db;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.85em;
+    margin-bottom: 10px;
+}
+
+.trial-card .trial-details {
+    margin-top: 10px;
+    color: #555;
+}
+
+.trial-card .trial-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.trial-card .trial-actions button {
+    font-size: 0.9em;
+    padding: 8px 15px;
+}
+
+.btn-save {
+    background: #27ae60;
+}
+
+.btn-save:hover {
+    background: #229954;
+}
+
+.btn-unsave {
+    background: #e74c3c;
+}
+
+.btn-unsave:hover {
+    background: #c0392b;
+}
+
+.btn-details {
+    background: #95a5a6;
+}
+
+.btn-details:hover {
+    background: #7f8c8d;
+}
+
+#loading {
+    text-align: center;
+    padding: 20px;
+    color: #7f8c8d;
+}
+
+/* Empty States */
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #7f8c8d;
+}
