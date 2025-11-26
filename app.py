@@ -8,6 +8,7 @@ from datetime import timedelta
 import os
 from dotenv import load_dotenv
 import models
+import trial_cache
 
 # Load environment variables
 load_dotenv()
@@ -103,7 +104,7 @@ def get_medical_history_endpoint():
 @app.route('/api/trials/search', methods=['GET'])
 def search_trials():
     """
-    Search clinical trials via ClinicalTrials.gov API
+    Search clinical trials via ClinicalTrials.gov API with MongoDB caching
     Query params:
     - condition: disease/condition
     - location: geographic location
@@ -112,9 +113,41 @@ def search_trials():
     - status: recruitment status
     - pageSize: results per page (default 10)
     - pageToken: pagination token
+    - use_cache: whether to use cache (default true)
     """
     try:
-        # Build query parameters
+        condition = request.args.get('condition')
+        location = request.args.get('location')
+        status = request.args.get('status')
+        use_cache = request.args.get('use_cache', 'true').lower() == 'true'
+
+        # Try to get from cache first (if not paginating)
+        if use_cache and not request.args.get('pageToken'):
+            try:
+                cached_results = trial_cache.search_cached_trials(
+                    condition=condition,
+                    location=location,
+                    status=status,
+                    limit=int(request.args.get('pageSize', 20))
+                )
+
+                if cached_results:
+                    # Format cached results to match API response
+                    formatted_studies = []
+                    for cached_trial in cached_results:
+                        formatted_studies.append({
+                            'protocolSection': cached_trial.get('protocolSection', {})
+                        })
+
+                    return jsonify({
+                        'studies': formatted_studies,
+                        'totalCount': len(formatted_studies),
+                        'cached': True
+                    })
+            except Exception as cache_error:
+                print(f"Cache lookup failed: {cache_error}, falling back to API")
+
+        # Build query parameters for API
         params = {
             'format': 'json',
             'pageSize': request.args.get('pageSize', 10)
@@ -123,14 +156,14 @@ def search_trials():
         # Build query string
         query_parts = []
 
-        if request.args.get('condition'):
-            query_parts.append(f"AREA[ConditionSearch]{request.args.get('condition')}")
+        if condition:
+            query_parts.append(f"AREA[ConditionSearch]{condition}")
 
-        if request.args.get('location'):
-            query_parts.append(f"AREA[LocationSearch]{request.args.get('location')}")
+        if location:
+            query_parts.append(f"AREA[LocationSearch]{location}")
 
-        if request.args.get('status'):
-            query_parts.append(f"AREA[RecruitmentStatus]{request.args.get('status')}")
+        if status:
+            query_parts.append(f"AREA[RecruitmentStatus]{status}")
 
         if query_parts:
             params['query.term'] = ' AND '.join(query_parts)
@@ -147,6 +180,16 @@ def search_trials():
         response.raise_for_status()
 
         data = response.json()
+
+        # Cache the results in MongoDB
+        if use_cache and 'studies' in data:
+            for study in data['studies']:
+                try:
+                    trial_cache.cache_trial(study)
+                except Exception as cache_error:
+                    print(f"Failed to cache trial: {cache_error}")
+
+        data['cached'] = False
         return jsonify(data)
 
     except requests.exceptions.RequestException as e:
@@ -156,8 +199,18 @@ def search_trials():
 
 @app.route('/api/trials/<nct_id>', methods=['GET'])
 def get_trial_details(nct_id):
-    """Get detailed information about a specific trial"""
+    """Get detailed information about a specific trial with MongoDB caching"""
     try:
+        # Check cache first
+        cached_trial = trial_cache.get_cached_trial(nct_id)
+
+        if cached_trial:
+            return jsonify({
+                'protocolSection': cached_trial.get('protocolSection', {}),
+                'cached': True
+            })
+
+        # Not in cache, fetch from API
         response = requests.get(
             f"{CLINICAL_TRIALS_API_BASE}/studies/{nct_id}",
             params={'format': 'json'},
@@ -166,6 +219,15 @@ def get_trial_details(nct_id):
         response.raise_for_status()
 
         data = response.json()
+
+        # Cache the trial
+        if 'protocolSection' in data:
+            try:
+                trial_cache.cache_trial(data)
+            except Exception as cache_error:
+                print(f"Failed to cache trial {nct_id}: {cache_error}")
+
+        data['cached'] = False
         return jsonify(data)
 
     except requests.exceptions.RequestException as e:
