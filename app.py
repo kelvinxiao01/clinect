@@ -6,6 +6,11 @@ from flask import Flask, request, jsonify, render_template, session
 import requests
 from datetime import timedelta
 import os
+from dotenv import load_dotenv
+import models
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -25,7 +30,10 @@ def login():
     username = data.get('username')
 
     if username:
+        # Get or create user in database
+        user = models.get_or_create_user(username)
         session['user'] = username
+        session['user_id'] = user['id']
         session.permanent = True
         return jsonify({'success': True, 'username': username})
 
@@ -35,6 +43,7 @@ def login():
 def logout():
     """Logout user"""
     session.pop('user', None)
+    session.pop('user_id', None)
     return jsonify({'success': True})
 
 @app.route('/api/current-user', methods=['GET'])
@@ -50,26 +59,42 @@ def current_user():
 # ============================================================================
 
 @app.route('/api/medical-history', methods=['POST'])
-def save_medical_history():
+def save_medical_history_endpoint():
     """Save user's medical history"""
-    if 'user' not in session:
+    if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
 
     data = request.json
-    # TODO: Save to PostgreSQL
-    # For now, store in session
-    session['medical_history'] = data
+    user_id = session['user_id']
 
-    return jsonify({'success': True, 'data': data})
+    try:
+        history = models.save_medical_history(
+            user_id=user_id,
+            age=data.get('age'),
+            gender=data.get('gender'),
+            location=data.get('location'),
+            conditions=data.get('conditions'),
+            medications=data.get('medications')
+        )
+        return jsonify({'success': True, 'data': history})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/medical-history', methods=['GET'])
-def get_medical_history():
+def get_medical_history_endpoint():
     """Get user's medical history"""
-    if 'user' not in session:
+    if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
 
-    history = session.get('medical_history', {})
-    return jsonify(history)
+    user_id = session['user_id']
+
+    try:
+        history = models.get_medical_history(user_id)
+        if history:
+            return jsonify(history)
+        return jsonify({})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ============================================================================
 # Clinical Trials Search Endpoints
@@ -153,19 +178,33 @@ def get_trial_details(nct_id):
 # ============================================================================
 
 @app.route('/api/saved-trials', methods=['GET'])
-def get_saved_trials():
+def get_saved_trials_endpoint():
     """Get user's saved trials"""
-    if 'user' not in session:
+    if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
 
-    # TODO: Fetch from PostgreSQL
-    saved_trials = session.get('saved_trials', [])
-    return jsonify(saved_trials)
+    user_id = session['user_id']
+
+    try:
+        trials = models.get_saved_trials(user_id)
+        # Format for frontend compatibility
+        formatted_trials = [{
+            'nctId': trial['nct_id'],
+            'trialData': {
+                'title': trial['trial_title'],
+                'status': trial['trial_status'],
+                'summary': trial['trial_summary']
+            },
+            'savedAt': trial['saved_at'].isoformat() if trial['saved_at'] else None
+        } for trial in trials]
+        return jsonify(formatted_trials)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/saved-trials', methods=['POST'])
-def save_trial():
+def save_trial_endpoint():
     """Save a trial to user's list"""
-    if 'user' not in session:
+    if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
 
     data = request.json
@@ -175,35 +214,41 @@ def save_trial():
     if not nct_id:
         return jsonify({'error': 'Trial ID required'}), 400
 
-    # TODO: Save to PostgreSQL
-    saved_trials = session.get('saved_trials', [])
+    user_id = session['user_id']
 
-    # Check if already saved
-    if any(trial.get('nctId') == nct_id for trial in saved_trials):
-        return jsonify({'success': True, 'message': 'Trial already saved'})
+    try:
+        # Check if already saved
+        if models.is_trial_saved(user_id, nct_id):
+            return jsonify({'success': True, 'message': 'Trial already saved'})
 
-    saved_trials.append({
-        'nctId': nct_id,
-        'trialData': trial_data,
-        'savedAt': None  # TODO: Add timestamp
-    })
+        # Save to database
+        models.save_trial(
+            user_id=user_id,
+            nct_id=nct_id,
+            trial_title=trial_data.get('title'),
+            trial_status=trial_data.get('status'),
+            trial_summary=trial_data.get('summary')
+        )
 
-    session['saved_trials'] = saved_trials
-
-    return jsonify({'success': True, 'message': 'Trial saved'})
+        return jsonify({'success': True, 'message': 'Trial saved'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/saved-trials/<nct_id>', methods=['DELETE'])
-def unsave_trial(nct_id):
+def unsave_trial_endpoint(nct_id):
     """Remove a trial from user's saved list"""
-    if 'user' not in session:
+    if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
 
-    # TODO: Delete from PostgreSQL
-    saved_trials = session.get('saved_trials', [])
-    saved_trials = [trial for trial in saved_trials if trial.get('nctId') != nct_id]
-    session['saved_trials'] = saved_trials
+    user_id = session['user_id']
 
-    return jsonify({'success': True, 'message': 'Trial removed'})
+    try:
+        success = models.delete_saved_trial(user_id, nct_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Trial removed'})
+        return jsonify({'error': 'Trial not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ============================================================================
 # Frontend Routes
