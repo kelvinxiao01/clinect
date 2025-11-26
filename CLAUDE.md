@@ -13,8 +13,10 @@ Clinect is a platform designed to connect patients with relevant clinical trials
 ### Technology Stack
 - **PySpark**: Large-scale data processing and ETL pipelines
 - **PostgreSQL**: Relational database for structured clinical trial data
+  - **psycopg**: PostgreSQL adapter for Python
 - **MongoDB**: Document store for flexible trial metadata and patient profiles
 - **Neo4j**: Graph database for relationship mapping between patients, trials, conditions, and treatments
+- **Flask**: Lightweight Python web framework for backend API
 
 ## Architecture Concept
 
@@ -24,7 +26,7 @@ Clinect is a platform designed to connect patients with relevant clinical trials
 3. **Storage**:
    - PostgreSQL: Core trial information, patient records
    - MongoDB: Flexible trial documents, search indices
-   - Neo4j: Relationship graphs (conditions ’ trials, locations ’ trials, etc.)
+   - Neo4j: Relationship graphs (conditions ï¿½ trials, locations ï¿½ trials, etc.)
 
 ### Key Features (Planned)
 - Patient profile creation with medical history
