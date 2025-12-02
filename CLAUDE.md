@@ -58,3 +58,19 @@ Clinect is a platform designed to connect patients with relevant clinical trials
 - Build incremental data pipeline
 - Focus on matching algorithm development
 - Consider real-time vs batch processing needs
+
+## Package Management
+- This project uses **uv** for Python package management
+- Always use `uv run <script>` to run Python scripts (e.g., `uv run app.py`, `uv run init_db.py`)
+- uv automatically manages the virtual environment - no need to manually activate it
+- Use `uv sync` to install/update dependencies
+- Use `uv add <package>` to add new dependencies
+
+## Running the Project
+See [README.md](README.md) for complete setup instructions.
+
+## Important Instruction Reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
