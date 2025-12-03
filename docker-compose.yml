@@ -33,6 +33,28 @@ services:
       timeout: 5s
       retries: 5
 
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: clinect_neo4j
+    environment:
+      NEO4J_AUTH: neo4j/clinect_neo4j_password
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      NEO4J_dbms_memory_heap_max__size: 512M
+    ports:
+      - "7474:7474"  # HTTP (Neo4j Browser)
+      - "7687:7687"  # Bolt protocol
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
   mongodb_data:
+  neo4j_data:
+  neo4j_logs:
