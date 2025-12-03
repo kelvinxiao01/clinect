@@ -60,6 +60,39 @@ def get_user_by_username(username):
 
     return user
 
+def get_or_create_user_by_firebase_uid(firebase_uid, email=None):
+    """
+    Get or create user by Firebase UID
+    Firebase UID is the unique identifier from Firebase Auth
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Try to find existing user by Firebase UID
+    cur.execute("SELECT * FROM users WHERE firebase_uid = %s", (firebase_uid,))
+    user = cur.fetchone()
+
+    if user:
+        cur.close()
+        conn.close()
+        return user
+
+    # Create new user if not found
+    cur.execute(
+        """
+        INSERT INTO users (firebase_uid, email)
+        VALUES (%s, %s)
+        RETURNING *
+        """,
+        (firebase_uid, email)
+    )
+    user = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return user
+
 # ============================================================================
 # Medical History Operations
 # ============================================================================
