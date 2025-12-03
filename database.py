@@ -25,9 +25,16 @@ def create_schema():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
-            username VARCHAR(255) UNIQUE NOT NULL,
+            username VARCHAR(255) UNIQUE,
+            firebase_uid VARCHAR(255) UNIQUE,
+            email VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    """)
+
+    # Create index on firebase_uid for faster lookups
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid)
     """)
 
     # Create medical_histories table

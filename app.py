@@ -2,13 +2,16 @@
 Flask backend for Clinect - Clinical Trial Patient Matching Platform
 """
 
-from flask import Flask, request, jsonify, render_template, session
+from flask import Flask, request, jsonify, session
+from flask_cors import CORS
 import requests
 from datetime import timedelta
 import os
 from dotenv import load_dotenv
 import models
 import trial_cache
+import firebase_admin
+from firebase_admin import credentials, auth
 
 # Load environment variables
 load_dotenv()
@@ -17,16 +20,72 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
+# Enable CORS for frontend
+CORS(app, origins=['http://localhost:3000', 'https://clinect-fe.vercel.app'], supports_credentials=True)
+
+# Initialize Firebase Admin SDK
+firebase_service_account_path = os.environ.get('FIREBASE_SERVICE_ACCOUNT_PATH', 'firebase-service-account.json')
+if os.path.exists(firebase_service_account_path):
+    cred = credentials.Certificate(firebase_service_account_path)
+    firebase_admin.initialize_app(cred)
+    print(f"✅ Firebase Admin SDK initialized with {firebase_service_account_path}")
+else:
+    print(f"⚠️  Warning: Firebase service account file not found at {firebase_service_account_path}")
+    print("   Firebase authentication will not work until you add the service account file.")
+
 # ClinicalTrials.gov API Configuration
 CLINICAL_TRIALS_API_BASE = "https://clinicaltrials.gov/api/v2"
 
 # ============================================================================
-# Authentication Endpoints (Dummy Auth)
+# Authentication Endpoints
 # ============================================================================
+
+@app.route('/api/firebase-login', methods=['POST'])
+def firebase_login():
+    """
+    Verify Firebase ID token and create session
+    Frontend sends Firebase ID token after user authenticates
+    """
+    data = request.json
+    id_token = data.get('idToken')
+
+    if not id_token:
+        return jsonify({'success': False, 'error': 'ID token required'}), 400
+
+    try:
+        # Verify the Firebase ID token
+        decoded_token = auth.verify_id_token(id_token)
+        firebase_uid = decoded_token['uid']
+        email = decoded_token.get('email')  # May be None for anonymous users
+
+        # Get or create user in your database using Firebase UID
+        user = models.get_or_create_user_by_firebase_uid(
+            firebase_uid=firebase_uid,
+            email=email
+        )
+
+        # Create session (your existing session logic)
+        session['user'] = email or f'anonymous_{firebase_uid[:8]}'
+        session['user_id'] = user['id']
+        session['firebase_uid'] = firebase_uid
+        session.permanent = True
+
+        return jsonify({
+            'success': True,
+            'email': email,
+            'firebase_uid': firebase_uid
+        })
+
+    except auth.InvalidIdTokenError:
+        return jsonify({'success': False, 'error': 'Invalid ID token'}), 401
+    except auth.ExpiredIdTokenError:
+        return jsonify({'success': False, 'error': 'Expired ID token'}), 401
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    """Dummy login - accepts any username/password"""
+    """Legacy login - accepts any username/password (for backwards compatibility)"""
     data = request.json
     username = data.get('username')
 
@@ -45,14 +104,22 @@ def logout():
     """Logout user"""
     session.pop('user', None)
     session.pop('user_id', None)
+    session.pop('firebase_uid', None)
     return jsonify({'success': True})
 
 @app.route('/api/current-user', methods=['GET'])
 def current_user():
     """Get current logged-in user"""
     user = session.get('user')
+    firebase_uid = session.get('firebase_uid')
+
     if user:
-        return jsonify({'logged_in': True, 'username': user})
+        return jsonify({
+            'logged_in': True,
+            'username': user,  # For backwards compatibility
+            'email': user if '@' in str(user) else None,
+            'firebase_uid': firebase_uid
+        })
     return jsonify({'logged_in': False})
 
 # ============================================================================
@@ -311,15 +378,6 @@ def unsave_trial_endpoint(nct_id):
         return jsonify({'error': 'Trial not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-# ============================================================================
-# Frontend Routes
-# ============================================================================
-
-@app.route('/')
-def index():
-    """Serve main application page"""
-    return render_template('index.html')
 
 # ============================================================================
 # Main
